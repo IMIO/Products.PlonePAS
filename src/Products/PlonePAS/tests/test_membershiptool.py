@@ -16,6 +16,8 @@ from Products.PlonePAS.tests import dummy
 from Products.PlonePAS.tools.memberdata import MemberData
 from Products.PlonePAS.tools.membership import MembershipTool
 from Products.PlonePAS.utils import getGroupsForPrincipal
+from Products.PluggableAuthService.interfaces.events import \
+    IUserDeletedEvent, IPrincipalDeletedEvent
 from cStringIO import StringIO
 from plone.app.testing import PLONE_SITE_ID
 from plone.app.testing import SITE_OWNER_NAME
@@ -23,6 +25,8 @@ from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
 from plone.app.testing import TEST_USER_PASSWORD
 from zExceptions import BadRequest
+from zope.component import adapter
+from zope.component import getGlobalSiteManager
 import os
 
 
@@ -649,6 +653,43 @@ class TestMembershipTool(base.TestCase, WarningInterceptor):
 
     def beforeTearDown(self):
         self._free_warning_output()
+
+    def testRemoveUserDelEvent(self):
+        eventsFired = []
+
+        @adapter(IUserDeletedEvent)
+        def gotDeletion(event):
+            eventsFired.append(event)
+
+        gsm = getGlobalSiteManager()
+        gsm.registerHandler(gotDeletion)
+        self.membership.addMember('foo', 'secret', ['Member'], [],
+                                  properties={'fullname': 'Foo user'})
+        self.portal.acl_users._doDelUser('foo')
+        self.assertEqual(len(eventsFired), 1)
+        self.assertEqual(eventsFired[0].principal, 'foo')
+        gsm.unregisterHandler(gotDeletion)
+
+    def testRemovePrincipalDelEvent(self):
+        eventsFired = []
+
+        @adapter(IPrincipalDeletedEvent)
+        def gotDeletion(event):
+            eventsFired.append(event)
+
+        gsm = getGlobalSiteManager()
+        gsm.registerHandler(gotDeletion)
+        self.membership.addMember('foo', 'secret', ['Member'], [],
+                                  properties={'fullname': 'Foo user'})
+        self.portal.acl_users._doDelUser('foo')
+        self.assertEqual(len(eventsFired), 1)
+        self.assertEqual(eventsFired[0].principal, 'foo')
+
+        self.groups.addGroup('bar', [], [])
+        self.groups.removeGroups(['bar'])
+        self.assertEqual(len(eventsFired), 2)
+        self.assertEqual(eventsFired[1].principal, 'bar')
+        gsm.unregisterHandler(gotDeletion)
 
 
 class TestCreateMemberarea(base.TestCase):

@@ -21,7 +21,7 @@ from Products.PluggableAuthService.PluggableAuthService import \
     PluggableAuthService
 from Products.PluggableAuthService.PluggableAuthService import \
     _SWALLOWABLE_PLUGIN_EXCEPTIONS
-from Products.PluggableAuthService.events import PrincipalDeleted
+from Products.PluggableAuthService.events import UserDeleted
 from Products.PluggableAuthService.interfaces.authservice import \
     IPluggableAuthService
 from Products.PluggableAuthService.interfaces.plugins import \
@@ -129,7 +129,7 @@ def _doDelUser(self, id):
         except _SWALLOWABLE_PLUGIN_EXCEPTIONS:
             pass
         else:
-            notify(PrincipalDeleted(id))
+            notify(UserDeleted(id))
 
 
 def _doChangeUser(self, principal_id, password, roles, domains=(), groups=None,
